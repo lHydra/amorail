@@ -26,13 +26,15 @@ describe Amorail::Client do
   end
 
   describe "#with_client" do
-    before { mock_custom_api("https://custom.amo.com", "custom@amo.com", "123") }
+    before { mock_custom_api("https://custom.amo.com", "some_client_id", "some_client_secret", "some_code", "https://custom-site.ru/redirecto/uri") }
 
     let(:new_client) do
       described_class.new(
         api_endpoint: "https://custom.amo.com",
-        usermail: "custom@amo.com",
-        api_key: "123"
+        client_secret: "some_client_secret",
+        client_id: "some_client_id",
+        code: "some_code",
+        redirect_uri: "https://custom-site.ru/redirecto/uri"
       )
     end
 

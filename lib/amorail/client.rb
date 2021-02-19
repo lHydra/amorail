@@ -10,14 +10,19 @@ module Amorail
   class Client
     SUCCESS_STATUS_CODES = [200, 204].freeze
 
-    attr_reader :usermail, :api_key, :api_endpoint
+    attr_reader :api_endpoint
 
     def initialize(api_endpoint: Amorail.config.api_endpoint,
-                   api_key: Amorail.config.api_key,
-                   usermail: Amorail.config.usermail)
+                   client_id: Amorail.config.client_id,
+                   client_secret: Amorail.config.client_secret,
+                   code: Amorail.config.code,
+                   redirect_uri: Amorail.config.redirect_uri)
       @api_endpoint = api_endpoint
-      @api_key = api_key
-      @usermail = usermail
+      @client_id = client_id
+      @client_secret = client_secret
+      @code = code
+      @redirect_uri = redirect_uri
+
       @connect = Faraday.new(url: api_endpoint) do |faraday|
         faraday.response :json, content_type: /\bjson$/
         faraday.use :instrumentation
@@ -34,33 +39,46 @@ module Amorail
     end
 
     def authorize
-      self.cookies = nil
-      response = post(
-        Amorail.config.auth_url,
-        'USER_LOGIN' => usermail,
-        'USER_HASH' => api_key
-      )
-      cookie_handler(response)
+      response = post(Amorail.config.auth_url, auth_params)
+      access_token_handler(response)
       response
     end
 
+    def auth_params
+      if token_expired?
+        {
+            client_id: @client_id,
+            client_secret: @client_secret,
+            grant_type: 'refresh_token',
+            refresh_token: refresh_token,
+            redirect_uri: @redirect_uri
+        }
+      else
+        {
+            client_id: @client_id,
+            client_secret: @client_secret,
+            grant_type: 'authorization_code',
+            code: @code,
+            redirect_uri: @redirect_uri
+        }
+      end
+    end
+
     def safe_request(method, url, params = {})
-      public_send(method, url, params)
-    rescue ::Amorail::AmoUnauthorizedError
-      authorize
+      authorize if access_token.blank? || token_expired?
       public_send(method, url, params)
     end
 
     def get(url, params = {})
       response = connect.get(url, params) do |request|
-        request.headers['Cookie'] = cookies if cookies.present?
+        request.headers['Authorization'] = "Bearer #{access_token}" if access_token.present?
       end
       handle_response(response)
     end
 
     def post(url, params = {})
       response = connect.post(url) do |request|
-        request.headers['Cookie'] = cookies if cookies.present?
+        request.headers['Authorization'] = "Bearer #{access_token}" if access_token.present?
         request.headers['Content-Type'] = 'application/json'
         request.body = params.to_json
       end
@@ -69,10 +87,45 @@ module Amorail
 
     private
 
-    attr_accessor :cookies
+    attr_reader :access_token, :refresh_token
 
-    def cookie_handler(response)
-      self.cookies = response.headers['set-cookie'].split('; ')[0]
+    def access_token_handler(response)
+      credentials = {
+          access_token: response.body['access_token'],
+          refresh_token: response.body['refresh_token'],
+          created_at: Time.now,
+          expires_in: response.body['expires_in']
+      }
+
+      if response.body['access_token'].present? && response.body['refresh_token'].present?
+        Dir.mkdir('tmp') unless Dir.exist?('tmp') unless defined?(Rails)
+        File.open(file_path, 'w') { |file| file.write(credentials.to_yaml) }
+      end
+    end
+
+    def access_token
+      access_credentials[:access_token]
+    end
+
+    def refresh_token
+      access_credentials[:refresh_token]
+    end
+
+    def token_expired?
+      return if access_credentials.blank?
+
+      created_at = access_credentials[:created_at]
+      expires_in = access_credentials[:expires_in].to_i
+
+      created_at + expires_in - Time.now < 3600
+    end
+
+    def access_credentials
+      if File.exist?(file_path)
+        YAML.load(File.read(file_path))
+      else
+        {}
+      end
     end
 
     def handle_response(response) # rubocop:disable all
@@ -97,6 +150,14 @@ module Amorail
         fail ::Amorail::AmoServiceUnaviableError
       else
         fail ::Amorail::AmoUnknownError, response.body
+      end
+    end
+
+    def file_path
+      if defined?(Rails)
+        Rails.root.join('config', Amorail.config.config_filename)
+      else
+        'tmp/' + Amorail.config.config_filename
       end
     end
   end
