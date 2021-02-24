@@ -101,7 +101,8 @@ module Amorail
 
       if response.body['access_token'].present? && response.body['refresh_token'].present?
         Dir.mkdir('tmp') unless Dir.exist?('tmp') unless defined?(Rails)
-        File.open(file_path, 'w') { |file| file.write(access_credentials.merge(credentials).to_yaml) }
+        data = access_credentials.merge(credentials).to_yaml
+        File.open(file_path, 'w') { |file| file.write(data) }
       end
     end
 
