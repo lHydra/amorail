@@ -101,8 +101,8 @@ module Amorail
 
       if response.body['access_token'].present? && response.body['refresh_token'].present?
         Dir.mkdir('tmp') unless Dir.exist?('tmp') unless defined?(Rails)
-        data = access_credentials.merge(credentials).to_yaml
-        File.open(file_path, 'w') { |file| file.write(data) }
+        data = access_credentials.blank? ? access_credentials.merge(credentials) : access_credentials.merge(credentials.values.first)
+        File.open(file_path, 'w') { |file| file.write(data.to_yaml) }
       end
     end
 
@@ -125,7 +125,7 @@ module Amorail
 
     def access_credentials
       if File.exist?(file_path)
-        YAML.load(File.read(file_path))
+        YAML.load(File.read(file_path))[@client_secret]
       else
         {}
       end
