@@ -91,15 +91,17 @@ module Amorail
 
     def access_token_handler(response)
       credentials = {
-          access_token: response.body['access_token'],
-          refresh_token: response.body['refresh_token'],
-          created_at: Time.now,
-          expires_in: response.body['expires_in']
+          @client_secret => {
+              access_token: response.body['access_token'],
+              refresh_token: response.body['refresh_token'],
+              created_at: Time.now,
+              expires_in: response.body['expires_in']
+          }
       }
 
       if response.body['access_token'].present? && response.body['refresh_token'].present?
         Dir.mkdir('tmp') unless Dir.exist?('tmp') unless defined?(Rails)
-        File.open(file_path, 'w') { |file| file.write(credentials.to_yaml) }
+        File.open(file_path, 'w') { |file| file.write(access_credentials.merge(credentials).to_yaml) }
       end
     end
 
