@@ -101,7 +101,7 @@ module Amorail
 
       if response.body['access_token'].present? && response.body['refresh_token'].present?
         Dir.mkdir('tmp') unless Dir.exist?('tmp') unless defined?(Rails)
-        data = access_credentials.blank? ? access_credentials.merge(credentials) : access_credentials.merge(credentials.values.first)
+        data = access_credentials.blank? ? access_credentials.merge(credentials) : credentials_file.merge(credentials)
         File.open(file_path, 'w') { |file| file.write(data.to_yaml) }
       end
     end
@@ -125,10 +125,14 @@ module Amorail
 
     def access_credentials
       if File.exist?(file_path)
-        YAML.load(File.read(file_path))[@client_secret]
+        credentials_file[@client_secret]
       else
         {}
       end
+    end
+
+    def credentials_file
+      YAML.load(File.read(file_path))
     end
 
     def handle_response(response) # rubocop:disable all
