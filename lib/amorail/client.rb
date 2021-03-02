@@ -22,6 +22,7 @@ module Amorail
       @client_secret = client_secret
       @code = code
       @redirect_uri = redirect_uri
+      @force_auth = false
 
       @connect = Faraday.new(url: api_endpoint) do |faraday|
         faraday.response :json, content_type: /\bjson$/
@@ -45,7 +46,7 @@ module Amorail
     end
 
     def auth_params
-      if token_expired?
+      if token_expired? && !@force_auth
         {
             client_id: @client_id,
             client_secret: @client_secret,
@@ -67,6 +68,9 @@ module Amorail
     def safe_request(method, url, params = {})
       authorize if access_token.blank? || token_expired?
       public_send(method, url, params)
+    rescue ::Amorail::AmoUnauthorizedError
+      @force_auth = true
+      authorize
     end
 
     def get(url, params = {})
