@@ -71,6 +71,7 @@ module Amorail
     rescue ::Amorail::AmoUnauthorizedError
       @force_auth = true
       authorize
+      public_send(method, url, params)
     end
 
     def get(url, params = {})
