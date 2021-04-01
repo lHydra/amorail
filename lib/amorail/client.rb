@@ -4,6 +4,7 @@ require 'faraday'
 require 'faraday_middleware'
 require 'json'
 require 'active_support'
+require 'amorail/middleware/request/host_mirror'
 
 module Amorail
   # Amorail http client
@@ -16,8 +17,10 @@ module Amorail
                    client_id: Amorail.config.client_id,
                    client_secret: Amorail.config.client_secret,
                    code: Amorail.config.code,
-                   redirect_uri: Amorail.config.redirect_uri)
+                   redirect_uri: Amorail.config.redirect_uri,
+                   endpoint_mirror: Amorail.config.endpoint_mirror)
       @api_endpoint = api_endpoint
+      @endpoint_mirror = endpoint_mirror
       @client_id = client_id
       @client_secret = client_secret
       @code = code
@@ -25,6 +28,7 @@ module Amorail
       @force_auth = false
 
       @connect = Faraday.new(url: api_endpoint) do |faraday|
+        faraday.use Middleware::Request::HostMirror, @endpoint_mirror
         faraday.response :json, content_type: /\bjson$/
         faraday.use :instrumentation
         faraday.adapter Faraday.default_adapter

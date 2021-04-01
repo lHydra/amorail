@@ -13,6 +13,7 @@ module Amorail
                 :client_secret,
                 :code,
                 :redirect_uri,
+                :endpoint_mirror,
                 api_path: '/private/api/v2/json/',
                 auth_url: '/oauth2/access_token',
                 config_filename: 'amorail.yml'
