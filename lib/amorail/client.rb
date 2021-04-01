@@ -28,7 +28,9 @@ module Amorail
       @force_auth = false
 
       @connect = Faraday.new(url: api_endpoint) do |faraday|
-        faraday.use Middleware::Request::HostMirror, @endpoint_mirror
+        if @endpoint_mirror.present?
+          faraday.use Middleware::Request::HostMirror, @endpoint_mirror
+        end
         faraday.response :json, content_type: /\bjson$/
         faraday.use :instrumentation
         faraday.adapter Faraday.default_adapter
